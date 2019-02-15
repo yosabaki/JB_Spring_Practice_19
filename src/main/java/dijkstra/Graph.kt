@@ -1,13 +1,16 @@
 package dijkstra
 
 import java.util.*
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.ArrayList
 
 class Node {
     private val _outgoingEdges = arrayListOf<Edge>()
     val outgoingEdges: List<Edge> = _outgoingEdges
 
-    var distance = Integer.MAX_VALUE // USE ME FOR THE DIJKSTRA ALGORITHM!
+    var marked = false;
+
+    val distance = AtomicInteger(Integer.MAX_VALUE) // USE ME FOR THE DIJKSTRA ALGORITHM!
 
     fun addEdge(edge: Edge) {
         _outgoingEdges.add(edge)
@@ -27,7 +30,9 @@ fun randomConnectedGraph(nodes: Int, edges: Int, maxWeight: Int = 100): List<Nod
     while (s.isNotEmpty()) {
         val neighbor = s.removeAt(r.nextInt(s.size))
         if (visited.add(neighbor)) {
-            cur.addEdge(Edge(neighbor, r.nextInt(maxWeight)))
+            val weight = r.nextInt(maxWeight)
+            cur.addEdge(Edge(neighbor, weight))
+            neighbor.addEdge(Edge(cur, weight))
         }
         cur = neighbor
     }
@@ -47,6 +52,26 @@ fun randomConnectedGraph(nodes: Int, edges: Int, maxWeight: Int = 100): List<Nod
     return nodesList
 }
 
+fun completeGraph(nodes: Int, maxWeight: Int = 100): List<Node> {
+    val r = Random()
+    val nodesList = List(nodes) { Node() }
+    // generate a random connected graph with `nodes-1` edges
+    val s = ArrayList(nodesList)
+    var cur = s.removeAt(s.size - 1)
+    while (s.isNotEmpty()) {
+        for (v in s) {
+            val weight = r.nextInt(maxWeight)
+            cur.addEdge(Edge(v, weight))
+            v.addEdge(Edge(cur, weight))
+        }
+        cur = s.removeAt(s.size - 1)
+    }
+    return nodesList
+}
+
 fun clearNodes(nodes: List<Node>) {
-    nodes.forEach { it.distance = Int.MAX_VALUE }
+    nodes.forEach {
+        it.distance.set(Int.MAX_VALUE)
+        it.marked = false
+    }
 }
