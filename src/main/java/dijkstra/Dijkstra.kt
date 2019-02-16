@@ -12,20 +12,21 @@ val NODE_DISTANCE_COMPARATOR = Comparator<Pair<Node, Int>> { o1, o2 -> Integer.c
 // Returns `Integer.MAX_VALUE` if a path has not been found.
 fun shortestPathSequential(start: Node, destination: Node): Int {
     start.distance.set(0)
-    val q = PriorityQueue<Pair<Node, Int>>(NODE_DISTANCE_COMPARATOR)
+    val q = PriorityQueue(NODE_DISTANCE_COMPARATOR)
     q.add(Pair(start, 0))
     while (q.isNotEmpty()) {
-        val cur = q.poll()
-        if (cur.first.distance.get() != cur.second) continue
-        for (e in cur.first.outgoingEdges) {
-            if (!e.to.marked) {
-                if (e.to.distance.get() > cur.first.distance.get() + e.weight) {
-                    e.to.distance.set(cur.first.distance.get() + e.weight)
-                    q.add(Pair(e.to, e.to.distance.get()))
+        val (cur, distance) = q.poll()
+        if (cur.distance.get() != distance) continue
+        for (e in cur.outgoingEdges) {
+            val to = e.to
+            if (!to.marked) {
+                if (to.distance.get() > cur.distance.get() + e.weight) {
+                    to.distance.set(cur.distance.get() + e.weight)
+                    q.add(Pair(to, to.distance.get()))
                 }
             }
         }
-        cur.first.marked = true
+        cur.marked = true
     }
     return destination.distance.get()
 }
@@ -36,7 +37,7 @@ fun shortestPathSequential(start: Node, destination: Node): Int {
 fun shortestPathParallel(start: Node, destination: Node): Int {
     val workers = Runtime.getRuntime().availableProcessors()
     start.distance.set(0)
-    val q = PriorityQueue<Pair<Node, Int>>(workers, NODE_DISTANCE_COMPARATOR)
+    val q = PriorityQueue(workers, NODE_DISTANCE_COMPARATOR)
     q.add(Pair(start, 0))
     val onFinish = Phaser(workers + 1) // `arrive()` should be invoked at the end by each worker
     val workersCounter = AtomicInteger(0)
@@ -45,21 +46,21 @@ fun shortestPathParallel(start: Node, destination: Node): Int {
         thread {
             var isWorking = false
             while (true) {
-                val curr: Node? = synchronized(q) {
-                    // skip nodes with outdated distance
-                    while (q.isNotEmpty() && q.peek().first.distance.get() != q.peek().second) {
-                        q.poll()
+                val curr: Node?
+                // prevent race condition of countWorkers
+                synchronized(workersCounter) {
+                    curr = synchronized(q) {
+                        // skip nodes with outdated distance
+                        while (q.isNotEmpty() && q.peek().first.distance.get() != q.peek().second) {
+                            q.poll()
+                        }
+                        q.poll()?.first
                     }
-                    q.poll()?.first
-                }
-                lock.lock() // prevent race condition of countWorkers variable
-                try {
+                    // change state of the current worker and update counter
                     if (curr == null) {
-                        synchronized(workersCounter) {
-                            if (isWorking) {
-                                workersCounter.decrementAndGet()
-                                isWorking = false
-                            }
+                        if (isWorking) {
+                            workersCounter.decrementAndGet()
+                            isWorking = false
                         }
                     } else {
                         if (!isWorking) {
@@ -67,12 +68,14 @@ fun shortestPathParallel(start: Node, destination: Node): Int {
                             isWorking = true
                         }
                     }
-                } finally {
-                    lock.unlock()
                 }
                 if (curr == null) {
                     // terminate process when all workers finished
-                    if (workersCounter.get() == 0) break else continue
+                    if (workersCounter.get() == 0) {
+                        break
+                    } else {
+                        continue
+                    }
                 }
                 for (e in curr.outgoingEdges) {
                     while (true) {

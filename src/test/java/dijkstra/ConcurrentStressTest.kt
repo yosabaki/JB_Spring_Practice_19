@@ -4,6 +4,7 @@ import org.junit.Test
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 import java.util.*
+import kotlin.system.measureTimeMillis
 import kotlin.test.assertEquals
 
 class ConcurrentStressTest {
@@ -36,12 +37,12 @@ class ConcurrentStressTest {
 
     @Test
     fun `test on big graphs with a lot of edges`() {
-        testOnRandomGraphs(10000, 1000000, 20)
+        testOnRandomGraphs(10000, 1000000, 50)
     }
 
     @Test
     fun `test on very big graphs`() {
-        testOnRandomGraphs(100000, 1000000, 5)
+        testOnRandomGraphs(100000, 1000000, 10)
     }
 
     @Test
@@ -50,7 +51,7 @@ class ConcurrentStressTest {
     }
 
     private fun testOnCompleteGraphs(nodes: Int, searches: Int = 100) {
-        testOnRandomGraphs(nodes, (nodes*(nodes-1))/2, searches, true)
+        testOnRandomGraphs(nodes, (nodes * (nodes - 1)) / 2, searches, true)
     }
 
     private fun testOnRandomGraphs(nodes: Int, edges: Int, searches: Int = 100, isComplete: Boolean = false) {
@@ -67,21 +68,25 @@ class ConcurrentStressTest {
             repeat(searches) {
                 val from = nodesList[r.nextInt(nodes)]
                 val to = nodesList[r.nextInt(nodes)]
-                var begin = LocalDateTime.now()
-                val seqRes = shortestPathSequential(from, to)
-                sequentialTime += begin.until(LocalDateTime.now(), ChronoUnit.MILLIS)
+                var seqRes = 0
+                sequentialTime += measureTimeMillis {
+                    seqRes = shortestPathSequential(from, to)
+                }
                 clearNodes(nodesList)
-                begin = LocalDateTime.now()
-                val parRes = shortestPathParallel(from, to)
-                parallelTime += begin.until(LocalDateTime.now(), ChronoUnit.MILLIS)
+                var parRes = 1
+                parallelTime += measureTimeMillis {
+                    parRes = shortestPathParallel(from, to)
+                }
                 clearNodes(nodesList)
                 assertEquals(seqRes, parRes)
             }
         }
-        println("nodes: $nodes, edges: $edges")
-        println("sequential - $sequentialTime")
-        println("parallel - $parallelTime")
-        println("==============================")
+        println("""
+            nodes: $nodes, edges: $edges
+            sequential - $sequentialTime
+            parallel - $parallelTime
+            parallel to sequential - ${"%.3f".format(sequentialTime.toDouble() / parallelTime)}
+            ==============================""".trimIndent())
     }
 
 }
