@@ -1,8 +1,6 @@
 package dijkstra
 
 import org.junit.Test
-import java.time.LocalDateTime
-import java.time.temporal.ChronoUnit
 import java.util.*
 import kotlin.system.measureTimeMillis
 import kotlin.test.assertEquals
@@ -16,9 +14,8 @@ class ConcurrentStressTest {
 
     @Test
     fun `test on big trees`() {
-        testOnRandomGraphs(10000, 9999)
+        testOnRandomGraphs(10_000, 9999)
     }
-
 
     @Test
     fun `test on very small graphs`() {
@@ -32,17 +29,17 @@ class ConcurrentStressTest {
 
     @Test
     fun `test on big graphs`() {
-        testOnRandomGraphs(10000, 100000)
+        testOnRandomGraphs(10_000, 100_000)
     }
 
     @Test
     fun `test on big graphs with a lot of edges`() {
-        testOnRandomGraphs(10000, 1000000, 50)
+        testOnRandomGraphs(10_000, 1_000_000, 50)
     }
 
     @Test
     fun `test on very big graphs`() {
-        testOnRandomGraphs(100000, 1000000, 10)
+        testOnRandomGraphs(100_000, 1_000_000, 10)
     }
 
     @Test

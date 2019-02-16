@@ -42,6 +42,8 @@ fun shortestPathParallel(start: Node, destination: Node): Int {
     val onFinish = Phaser(workers + 1) // `arrive()` should be invoked at the end by each worker
     val workersCounter = AtomicInteger(0)
     val lock = ReentrantLock()
+    var finished = false
+    val notEmpty = lock.newCondition()
     repeat(workers) {
         thread {
             var isWorking = false
@@ -72,8 +74,30 @@ fun shortestPathParallel(start: Node, destination: Node): Int {
                 if (curr == null) {
                     // terminate process when all workers finished
                     if (workersCounter.get() == 0) {
+                        if (!finished) {
+                            // wake up other threads waiting for elements
+                            finished = true
+                            lock.lock()
+                            try {
+                                notEmpty.signalAll()
+                            } finally {
+                                lock.unlock()
+                            }
+                        }
                         break
                     } else {
+                        // condition variable is used to not to lock queue without need
+                        // it creates a small boost for graphs with few edges per node and trees
+                        // (work speed increased at about 15-20% for random trees with 10_000 nodes
+                        // compared to solution without condition variable)
+                        lock.lock()
+                        try {
+                            while (q.isEmpty() && workersCounter.get() > 0) {
+                                notEmpty.await()
+                            }
+                        } finally {
+                            lock.unlock()
+                        }
                         continue
                     }
                 }
@@ -87,6 +111,13 @@ fun shortestPathParallel(start: Node, destination: Node): Int {
                             }
                             synchronized(q) {
                                 q.add(Pair(e.to, currValue + e.weight))
+                            }
+                            // notify thread waiting for element in queue
+                            lock.lock()
+                            try {
+                                notEmpty.signal()
+                            } finally {
+                                lock.unlock()
                             }
                         }
                         break

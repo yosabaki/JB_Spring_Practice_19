@@ -8,7 +8,7 @@ class Node {
     private val _outgoingEdges = arrayListOf<Edge>()
     val outgoingEdges: List<Edge> = _outgoingEdges
 
-    var marked = false;
+    var marked = false
 
     val distance = AtomicInteger(Integer.MAX_VALUE) // USE ME FOR THE DIJKSTRA ALGORITHM!
 
@@ -55,7 +55,7 @@ fun randomConnectedGraph(nodes: Int, edges: Int, maxWeight: Int = 100): List<Nod
 fun completeGraph(nodes: Int, maxWeight: Int = 100): List<Node> {
     val r = Random()
     val nodesList = List(nodes) { Node() }
-    // generate a random connected graph with `nodes-1` edges
+    // generate a random connected graph with `nodes - 1` edges
     val s = ArrayList(nodesList)
     var cur = s.removeAt(s.size - 1)
     while (s.isNotEmpty()) {
